@@ -1,19 +1,23 @@
 'use strict'
 
 const express = require('express');
+const http = require('http');
 const path = require('path');
+const socketio = require('socket.io');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const server = http.createServer(app);
+const io = socketio(server);
 
+const port = process.env.PORT || 3000;
 const publicDirectoryPath = path.join(__dirname, '../public');
 
 app.use(express.static(publicDirectoryPath));
 
-app.get('', (req, res) => {
-    res.render('index');
+io.on('connection', () => {
+    console.log('New WebSocket connection.');
 });
 
-app.listen(3000, () => {
+server.listen(3000, () => {
     console.log(`Server is up on ${port}`);
 });
