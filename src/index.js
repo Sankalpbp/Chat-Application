@@ -20,20 +20,19 @@ app.use(express.static(publicDirectoryPath));
 io.on('connection', (socket) => {
     console.log('New WebSocket connection.');
 
+    socket.on('join', (options, callback) => {
 
-
-    socket.on('join', ({ username, room }, callback) => {
-
-        const { error, user } = addUser({ id: socket.id, username, room });
+        const { error, user } = addUser({ id: socket.id, ...options });
 
         if (error) {
             return callback(error);
         }
 
-        socket.join(room);
+        socket.join(user.room);
 
-        socket.emit('message', generateMessage('Welcome!'));
-        socket.broadcast.to(room).emit('message', generateMessage(`${username} has joined!`));
+        socket.emit('message', generateMessage('Admin', 'Welcome!'));
+        socket.broadcast.to(user.room).emit('message', generateMessage('Admin', `${user.username} has joined!`));
+
         callback();
     });
 
@@ -44,20 +43,33 @@ io.on('connection', (socket) => {
             return callback('Profanity is not allowed.');
         }
 
-        io.emit('message', generateMessage(message));
+        const user = getUser(socket.id);
+
+        if (user) {
+            io.to(user.room).emit('message', generateMessage(user.username, message));
+        }
         callback();
     });
 
     socket.on('sendLocation', (location, callback) => {
-        io.emit('locationMessage', generateLocationMessage(`https://google.com/maps?q=${location.latitude},${location.longitude}`));
+        const user = getUser(socket.id);
+
+        if (user) {
+            io.to(user.room).emit('locationMessage', generateLocationMessage(user.username, `https://google.com/maps?q=${location.latitude},${location.longitude}`));
+        }
+
         callback();
     });
 
     socket.on('disconnect', () => {
-        io.emit('message', generateMessage('A user has left!'));
+
+        const user = removeUser(socket.id);
+        if (user) {
+            io.to(user.room).emit('message', generateMessage('Admin', `${user.username} has left!`));
+        }
     });
 });
 
-server.listen(3000, () => {
+server.listen(port, () => {
     console.log(`Server is up on ${port}`);
 });
